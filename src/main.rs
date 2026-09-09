@@ -1,29 +1,42 @@
+#![no_std]
+#![no_main]
+
+use core::default::Default;
 use core::str;
 use embassy_executor::Spawner;
 use embassy_nrf::peripherals;
-use embassy_nrf::usart::{Config, Uart};
-use embassy_nrf::{bind_interrupt, usart};
-use embassy_time::Time;
-use embassy_time::gpio::{Level, Output, Speed};
-use embassy_time::Delay;
+use embassy_nrf::uarte::{self, Config, Uarte};
+use embassy_nrf::{bind_interrupts};
+use embassy_nrf::gpio::{Level, Output};
+use embassy_nrf::uarte::Baudrate;
+use defmt_rtt as _;
+use panic_probe as _;
 
 // Bind interrupt for USART
-bind_interrupt!(struct Irqs {
-    USART2 => usart::interruptHandler<peripherals::USART2>;
+bind_interrupts!(struct Irqs {
+    UARTE1 => uarte::InterruptHandler<peripherals::UARTE1>;
 });
 
+
 #[embassy_executor::main]
-async fn main(spawner: Spawner) {
+async fn main(_spawner: Spawner) {
     let p = embassy_nrf::init(Default::default());
 
     // Initialize the LED (User LED on PA5)
-    let mut led = Output::new(p.PA5, Level::Low, Speed::Low);
+    let mut led = Output::new(p.P0_06, Level::Low, embassy_nrf::gpio::OutputDrive::Standard);
 
     //Initialize the USART2 peripheral with DMA for CLI listening
     let mut config = Config::default();
-    config.baudrate = 115200;
-    // Book text has this a mut
-    let uart = Uart::new(p.USART2, Irqs, p.DMA1_CH6, p.DMA1_CH7, config);
+    config.baudrate = Baudrate::BAUD115200; // Redundant
+
+    // We initialize the UARTE peripheral with RX/TX pins and interrupt binding.
+    let mut uart = Uarte::new(
+        p.UARTE1,
+        p.P1_12, // RX pin (D7 on XIAO nRF52840 Sense)
+        p.P1_11, // TX pin (D6 on XIAO nRF52840 Sense)
+        Irqs, // Interrupts for UARTE1
+        config,
+    );
 
     // Send a welcome message
     let _ = uart.write(b"Embassy CLI Ready. Type 'on' or 'off'.\r\n").await.unwrap();

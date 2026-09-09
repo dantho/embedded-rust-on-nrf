@@ -1,5 +1,15 @@
-[build]
-target = "thumbv7em-none-eabihf"
-
 [target.thumbv7em-none-eabihf]
-rustflags = ["-C", "link-arg=-Tlink.x"]
+# This sets the default runner for 'cargo run'.
+# Replace 'nrf52840' with your specific target if needed.
+runner = "probe-rs run --chip nRF52840_xxAA"
+rustflags = [
+# These arguments are passed to the linker.
+# '-Tlink.x' tells the linker to use the standard Cortex-M layout.
+# '-Tdefmt.x' tells the linker we're using the defmt logging framework.
+"-C","link-arg=-Tlink.x",
+"-C","link-arg=-Tdefmt.x",
+]
+
+[build]
+# This ensures that we always cross-compile for the ARM Cortex-M4F
+target = "thumbv7em-none-eabihf"

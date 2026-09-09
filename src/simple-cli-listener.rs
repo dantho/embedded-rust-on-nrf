@@ -1,9 +1,17 @@
+#![no_std]
+#![no_main]
+
+use panic_halt as _;
+use defmt_rtt as _;
+
 use core::str;
 use embassy_executor::Spawner;
-use embassy_stm32::peripherals;
-use embassy_stm32::usart::{Config, Uart};
-use embassy_stm32::{bind_interrupt, usart};
-use embassy_time::gpio::{Level, Output, Speed};
+use embassy_time::{Duration, Timer};
+use embassy_nrf::peripherals;
+use embassy_nrf::uarte::{self, Config, Uarte};
+use embassy_nrf::bind_interrupts;
+use embassy_nrf::gpio::{Level, Output, Speed};
+use embassy_nrf::{bind_interrupt, usart};
 
 // Bind interrupt for USART
 bind_interrupt!(struct Irqs {
@@ -12,7 +20,7 @@ bind_interrupt!(struct Irqs {
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
-    let p = embassy_stm32::init(Default::default());
+    let p = embassy_nrf::init(Default::default());
 
     // Initialize the LED (User LED on PA5)
     let mut led = Output::new(p.PA5, Level::Low, Speed::Low);
