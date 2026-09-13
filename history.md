@@ -10,13 +10,14 @@ The probe-rs debugging setup is validated end-to-end:
 6. Core halt and continue
 7. A verified hardware breakpoint in Rust source
 8. RTT & `defmt` logging configured in launch configuration and Cargo settings
-
-## Optional Next Checks
-
-5. Add an SVD file and test Peripheral Viewer.
+9. SVD file (`resources/nrf52840.svd`) and Peripheral Viewer configured
 
 ## Key Findings & Gotchas
 
+- **SVD & Peripheral Viewer**:
+  - Downloaded official `nrf52840.svd` into `resources/nrf52840.svd`.
+  - Configured `"svdFile": "${workspaceFolder}/resources/nrf52840.svd"` in [.vscode/launch.json](.vscode/launch.json).
+  - During an active debug session, the **XPeripherals** / **Peripheral Viewer** tree in the Run & Debug sidebar parses MCU registers (GPIO, UARTE, RTC, etc.) directly from target memory.
 - **`panic-probe` Deliberate Triggering**: Added a `"panic"` command to the CLI in [src/main.rs](src/main.rs) (`defmt::panic!(...)` or `panic!(...)`). When triggered, `panic-probe` outputs the formatted panic message and file/line location over `defmt` RTT, and then executes a hardware `BKPT` instruction to halt the core cleanly for the debugger.
 - **RTT & `defmt` Setup**:
   - `launch.json`: Added `rttEnabled: true` and `rttChannelFormats: [{ "channelNumber": 0, "dataFormat": "Defmt" }]` under `coreConfigs`.

@@ -21,6 +21,7 @@
                     "coreIndex": 0,
                     //!MODIFY
                     "programBinary": "target/thumbv7em-none-eabihf/debug/embedded-nrf",
+                    "svdFile": "${workspaceFolder}/resources/nrf52840.svd",
                     "rttEnabled": true,
                     "rttChannelFormats": [
                         {
@@ -62,6 +63,7 @@
                     "coreIndex": 0,
                     //!MODIFY
                     "programBinary": "target/thumbv7em-none-eabihf/debug/embedded-nrf",
+                    "svdFile": "${workspaceFolder}/resources/nrf52840.svd",
                     "rttEnabled": true,
                     "rttChannelFormats": [
                         {
