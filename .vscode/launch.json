@@ -16,10 +16,6 @@
             "wireProtocol": "Swd",
             //!MODIFY (or remove)
             // "probe": "VID:PID:<Serial>",
-            "flashingConfig": {
-                "flashingEnabled": true,
-                "haltAfterReset": true
-            },
             "coreConfigs": [
                 {
                     "coreIndex": 0,
@@ -52,6 +48,8 @@
             // "probe": "VID:PID:<Serial>",
             "flashingConfig": {
                 "flashingEnabled": true,
+                "verifyBeforeFlashing": true,
+                "verifyAfterFlashing": true,
                 "haltAfterReset": true
             },
             "coreConfigs": [
@@ -66,50 +64,11 @@
             "env": {
                 //!MODIFY (or remove)
                 // If you set this variable, check the VSCode console log window for the location of the log file.
-                "RUST_LOG": "probe_rs=debug,probe_rs_debug=debug"
+                // "RUST_LOG": "probe_rs=debug,probe_rs_debug=debug"
+                "RUST_LOG": "probe_rs=info,probe_rs_debug=info"
             },
-            // Info, Debug
-            "consoleLogLevel": "Debug"
+            // Console, Info, Debug in increasing order of verbosity
+            "consoleLogLevel": "Info"
         }
-        // {
-        //     "type": "probe-rs-debug",
-        //     "request": "launch",
-        //     "name": "probe-rs Test",
-        //     "cwd": "",
-        //     "connectUnderReset": false,
-        //     "chip": "STM32H745ZITx",
-        //     "flashingConfig": {
-        //         "flashingEnabled": true,
-        //         "verifyBeforeFlashing": true,
-        //         "verifyAfterFlashing": true,
-        //         "haltAfterReset": true
-        //     },
-        //     "coreConfigs": [
-        //         {
-        //             "coreIndex": 0,
-        //             "programBinary": "./target/thumbv7em-none-eabihf/debug/"
-        //         }
-        //     ]
-        // },
-        // {
-        //     "type": "probe-rs-debug",
-        //     "request": "launch",
-        //     "name": "probe-rs Test",
-        //     "cwd": "${workspaceFolder}",
-        //     "connectUnderReset": true,
-        //     "chip": "STM32H745ZITx",
-        //     "flashingConfig": {
-        //         "flashingEnabled": true,
-        //         "verifyBeforeFlashing": true,
-        //         "verifyAfterFlashing": true,
-        //         "haltAfterReset": true
-        //     },
-        //     "coreConfigs": [
-        //         {
-        //             "coreIndex": 0,
-        //             "programBinary": "./target/thumbv7em-none-eabihf/debug/${workspaceFolderBasename}"
-        //         }
-        //     ]
-        // }
     ]
 }
