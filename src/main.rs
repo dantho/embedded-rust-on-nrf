@@ -29,7 +29,7 @@ async fn main(_spawner: Spawner) {
     let _blue_led = p.P0_06;
 
     // Initialize the LED (User LED on PA5)
-    let mut led = Output::new(_red_led, Level::Low, embassy_nrf::gpio::OutputDrive::Standard);
+    let mut led = Output::new(_blue_led, Level::Low, embassy_nrf::gpio::OutputDrive::Standard);
 
     led.toggle();
     // let _ = uart.write(b"LED on.\r\n").await.unwrap();
@@ -96,19 +96,21 @@ async fn main(_spawner: Spawner) {
         let _ = uart.write(&byte_buf).await.unwrap();
 
         // 3. Process the whole command line if a newline is received, otherwise accumulate characters in the buffer
+        // "on\n" is 6f6e0a in hex
+        // "off\n" is 6f66660a in hex
         if byte_buf[0] == b'\r' || byte_buf[0] == b'\n' {
             // Process the command
             let command = str::from_utf8(&line_buffer[..cursor]).unwrap_or("");
             match command {
                 "" => {
-                    // Ignore empty commands
+                    // Ignore empty commands, which will occur due to naive processing of windows newlines (\r\n)
                 }
                 "on" => {
-                    led.set_high();
+                    led.set_low();
                     let _ = uart.write(b"LED turned on.\r\n").await.unwrap();
                 }
                 "off" => {
-                    led.set_low();
+                    led.set_high();
                     let _ = uart.write(b"LED turned off.\r\n").await.unwrap();
                 }
                 "help" => {
