@@ -4,6 +4,7 @@
 use core::default::Default;
 use core::str;
 use embassy_executor::Spawner;
+use embassy_time::{Duration, Timer};
 use embassy_nrf::peripherals;
 use embassy_nrf::uarte::{self, Config, Uarte};
 use embassy_nrf::{bind_interrupts};
@@ -44,6 +45,38 @@ async fn main(_spawner: Spawner) {
     // The line bugger to hold incoming characters
     let mut line_buffer = [0u8; 64];
     let mut cursor = 0;
+
+    led.toggle();
+    let _ = uart.write(b"LED on.\r\n").await.unwrap();
+    let _ = Timer::after(Duration::from_millis(500)).await;
+    
+    led.toggle();
+    let _ = uart.write(b"LED off.\r\n").await.unwrap();
+    let _ = Timer::after(Duration::from_millis(500)).await;
+
+    led.toggle();
+    let _ = uart.write(b"LED on.\r\n").await.unwrap();
+    let _ = Timer::after(Duration::from_millis(500)).await;
+    
+    led.toggle();
+    let _ = uart.write(b"LED off.\r\n").await.unwrap();
+    let _ = Timer::after(Duration::from_millis(500)).await;
+
+    led.toggle();
+    let _ = uart.write(b"LED on.\r\n").await.unwrap();
+    let _ = Timer::after(Duration::from_millis(500)).await;
+    
+    led.toggle();
+    let _ = uart.write(b"LED off.\r\n").await.unwrap();
+    let _ = Timer::after(Duration::from_millis(500)).await;
+
+    led.toggle();
+    let _ = uart.write(b"LED on.\r\n").await.unwrap();
+    let _ = Timer::after(Duration::from_millis(500)).await;
+    
+    led.toggle();
+    let _ = uart.write(b"LED off.\r\n").await.unwrap();
+    let _ = Timer::after(Duration::from_millis(500)).await;
 
     loop {
         // 1. Read a single byte
