@@ -13,11 +13,11 @@ The probe-rs debugging setup is validated end-to-end:
 
 ## Optional Next Checks
 
-5. Trigger a deliberate panic and verify `panic-probe` reporting.
-6. Add an SVD file and test Peripheral Viewer.
+5. Add an SVD file and test Peripheral Viewer.
 
 ## Key Findings & Gotchas
 
+- **`panic-probe` Deliberate Triggering**: Added a `"panic"` command to the CLI in [src/main.rs](src/main.rs) (`defmt::panic!(...)` or `panic!(...)`). When triggered, `panic-probe` outputs the formatted panic message and file/line location over `defmt` RTT, and then executes a hardware `BKPT` instruction to halt the core cleanly for the debugger.
 - **RTT & `defmt` Setup**:
   - `launch.json`: Added `rttEnabled: true` and `rttChannelFormats: [{ "channelNumber": 0, "dataFormat": "Defmt" }]` under `coreConfigs`.
   - `Cargo.toml`: Added `defmt = "1.1.1"` dependency alongside `defmt-rtt = "1.3.0"`.
