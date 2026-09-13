@@ -43,6 +43,7 @@
             "name": "Launch probe_rs",
             "type": "probe-rs-debug",
             "request": "launch",
+            "preLaunchTask": "cargo build",
             "cwd": "${workspaceFolder}",
             //Speed of the debug probe in kHz, so 1000 means 1 MHz -- conservatively slow
             "speed": 1000,

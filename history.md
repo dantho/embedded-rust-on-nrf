@@ -14,6 +14,7 @@ The probe-rs debugging setup is validated end-to-end:
 
 ## Key Findings & Gotchas
 
+- **Pre-Launch Build Task**: Added [.vscode/tasks.json](.vscode/tasks.json) with `cargo build` and configured `"preLaunchTask": "cargo build"` in [.vscode/launch.json](.vscode/launch.json), ensuring the binary is automatically recompiled before every debug flash/launch.
 - **SVD & Peripheral Viewer**:
   - Downloaded official `nrf52840.svd` into `resources/nrf52840.svd`.
   - Configured `"svdFile": "${workspaceFolder}/resources/nrf52840.svd"` in [.vscode/launch.json](.vscode/launch.json).
@@ -31,3 +32,17 @@ The probe-rs debugging setup is validated end-to-end:
   - **Shared Pin Conflict (P0.26 / D7)**: On the Seeed Studio XIAO nRF52840 (Sense) board schematic, MCU pin **`P0.26`** is routed to two physical destinations at the same time: the cathode of the onboard **Red LED** and the external header pin labeled **`D7`**.
   - **Why the Red LED Failed with UART**: When an external serial/UART cable is plugged into header pin `D7` (often assumed to be RX), the external USB-UART adapter's driver line holds/pulls `P0.26` low externally. Because the pin is driven by external hardware, software calls like `led.set_high()` cannot pull the line high against the external adapter, leaving the Red LED stuck ON.
   - **Solution**: Avoid using `P0.26` (Red LED / D7) and `P0.30` (Green LED / D8) when those header pins are connected to external hardware. Use **`P0.06` (Blue LED)** instead, as it is dedicated exclusively to the internal LED and not exposed to any external header pins.
+- **3-Bit Weighted Color Enum (`bsp::Color`)**:
+  - Encapsulated in [src/bsp.rs](src/bsp.rs) with `BitOr` support (e.g. `Color::Red | Color::Green | Color::Blue == Color::White`).
+  - Active-low polarity is handled inside `Leds::set_color(Color)`.
+
+| Color | Bits (`B G R`) | Binary | Decimal | Combination |
+| :--- | :---: | :---: | :---: | :--- |
+| **`Off`** | `0 0 0` | `0b000` | `0` | No LEDs active |
+| **`Red`** | `0 0 1` | `0b001` | `1` | Red |
+| **`Green`** | `0 1 0` | `0b010` | `2` | Green |
+| **`Yellow`** | `0 1 1` | `0b011` | `3` | Red + Green |
+| **`Blue`** | `1 0 0` | `0b100` | `4` | Blue |
+| **`Magenta`** | `1 0 1` | `0b101` | `5` | Red + Blue |
+| **`Cyan`** | `1 1 0` | `0b110` | `6` | Green + Blue |
+| **`White`** | `1 1 1` | `0b111` | `7` | **Red + Green + Blue** |
