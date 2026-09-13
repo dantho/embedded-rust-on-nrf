@@ -13,3 +13,6 @@ rustflags = [
 [build]
 # This ensures that we always cross-compile for the ARM Cortex-M4F
 target = "thumbv7em-none-eabihf"
+
+[env]
+DEFMT_LOG = "info"

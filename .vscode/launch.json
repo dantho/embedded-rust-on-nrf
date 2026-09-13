@@ -21,8 +21,13 @@
                     "coreIndex": 0,
                     //!MODIFY
                     "programBinary": "target/thumbv7em-none-eabihf/debug/embedded-nrf",
-                    //!MODIFY
-                    "svdFile": ".\\resources\\nrf52840.svd"
+                    "rttEnabled": true,
+                    "rttChannelFormats": [
+                        {
+                            "channelNumber": 0,
+                            "dataFormat": "Defmt"
+                        }
+                    ]
                 }
             ],
             "env": {
@@ -57,8 +62,13 @@
                     "coreIndex": 0,
                     //!MODIFY
                     "programBinary": "target/thumbv7em-none-eabihf/debug/embedded-nrf",
-                    // //!MODIFY
-                    // "svdFile": ".\\resources\\nrf52840.svd"
+                    "rttEnabled": true,
+                    "rttChannelFormats": [
+                        {
+                            "channelNumber": 0,
+                            "dataFormat": "Defmt"
+                        }
+                    ]
                 }
             ],
             "env": {

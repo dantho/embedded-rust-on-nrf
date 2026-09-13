@@ -4,7 +4,6 @@
 mod bsp;
 
 use bsp::Board;
-use core::str;
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_nrf::bind_interrupts;
@@ -24,6 +23,8 @@ bind_interrupts!(struct Irqs {
 async fn main(_spawner: Spawner) {
     let p = embassy_nrf::init(Default::default());
     let mut board = Board::init(p);
+
+    defmt::info!("Embassy initialized, starting blink sequence...");
 
     // Initial LED blink pattern using the Blue LED from the BSP
     let led = &mut board.leds.blue;
@@ -104,10 +105,12 @@ async fn main(_spawner: Spawner) {
                 }
                 "on" => {
                     led.set_low();
+                    defmt::info!("Command received: ON");
                     let _ = uart.write(b"LED turned on.\r\n").await.unwrap();
                 }
                 "off" => {
                     led.set_high();
+                    defmt::info!("Command received: OFF");
                     let _ = uart.write(b"LED turned off.\r\n").await.unwrap();
                 }
                 "help" => {
