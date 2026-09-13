@@ -24,44 +24,17 @@ async fn main(_spawner: Spawner) {
     let p = embassy_nrf::init(Default::default());
     let mut board = Board::init(p);
 
-    defmt::info!("Embassy initialized, starting blink sequence...");
-
-    // Initial LED blink pattern using the Blue LED from the BSP
+    // Using the Blue LED from the BSP
     let led = &mut board.leds.blue;
 
-    led.toggle();
-    // let _ = uart.write(b"LED on.\r\n").await.unwrap();
-    let _ = Timer::after(Duration::from_millis(500)).await;
-
-    led.toggle();
-    // let _ = uart.write(b"LED off.\r\n").await.unwrap();
-    let _ = Timer::after(Duration::from_millis(500)).await;
-
-    led.toggle();
-    // let _ = uart.write(b"LED on.\r\n").await.unwrap();
-    let _ = Timer::after(Duration::from_millis(500)).await;
-
-    led.toggle();
-    // let _ = uart.write(b"LED off.\r\n").await.unwrap();
-    let _ = Timer::after(Duration::from_millis(500)).await;
-
-    led.toggle();
-    // let _ = uart.write(b"LED on.\r\n").await.unwrap();
-    let _ = Timer::after(Duration::from_millis(500)).await;
-
-    led.toggle();
-    // let _ = uart.write(b"LED off.\r\n").await.unwrap();
-    let _ = Timer::after(Duration::from_millis(500)).await;
-
-    led.toggle();
-    // let _ = uart.write(b"LED on.\r\n").await.unwrap();
-    let _ = Timer::after(Duration::from_millis(500)).await;
-
-    led.toggle();
-    // let _ = uart.write(b"LED off.\r\n").await.unwrap();
-    let _ = Timer::after(Duration::from_millis(500)).await;
+    defmt::info!("Embassy initialized, starting blink sequence...");
+    for _ in 0..8 {
+        led.toggle();
+        let _ = Timer::after(Duration::from_millis(250)).await;
+    }
 
     // # UART Initialization
+    defmt::info!("Starting UART initialization...");
 
     let mut config = Config::default();
     config.baudrate = Baudrate::BAUD115200;
@@ -115,9 +88,14 @@ async fn main(_spawner: Spawner) {
                 }
                 "help" => {
                     let _ = uart
-                        .write(b"Available commands: on, off, help\r\n")
+                        .write(b"Available commands: on, off, help, panic\r\n")
                         .await
                         .unwrap();
+                }
+                "panic" => {
+                    let _ = uart.write(b"Triggering deliberate panic...\r\n").await.unwrap();
+                    defmt::error!("Deliberate panic triggered via CLI command!");
+                    defmt::panic!("Deliberate test panic for panic-probe verification!");
                 }
                 _ => {
                     let _ = uart.write(b"Unknown command.\r\n").await.unwrap();
