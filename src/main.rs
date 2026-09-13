@@ -1,12 +1,13 @@
 #![no_std]
 #![no_main]
 
-// use core::default::Default;
+mod bsp;
+
+use bsp::Board;
 use core::str;
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_nrf::bind_interrupts;
-use embassy_nrf::gpio::{Level, Output};
 use embassy_nrf::peripherals;
 use embassy_nrf::uarte::{self, Baudrate, Config, Uarte};
 use embassy_time::{Duration, Timer};
@@ -22,14 +23,10 @@ bind_interrupts!(struct Irqs {
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
     let p = embassy_nrf::init(Default::default());
+    let mut board = Board::init(p);
 
-    // Dan's own Board Support Package from the Seeed Studio XIAO nRF52840 Sense Schematic v1.1
-    let _red_led = p.P0_26;
-    let _green_led = p.P0_30;
-    let _blue_led = p.P0_06;
-
-    // Initialize the LED (User LED on PA5)
-    let mut led = Output::new(_blue_led, Level::Low, embassy_nrf::gpio::OutputDrive::Standard);
+    // Initial LED blink pattern using the Blue LED from the BSP
+    let led = &mut board.leds.blue;
 
     led.toggle();
     // let _ = uart.write(b"LED on.\r\n").await.unwrap();
@@ -65,15 +62,15 @@ async fn main(_spawner: Spawner) {
 
     // # UART Initialization
 
-    //Initialize the USART2 peripheral with DMA for CLI listening
     let mut config = Config::default();
-    config.baudrate = Baudrate::BAUD115200; // Redundant
+    config.baudrate = Baudrate::BAUD115200;
 
-    // We initialize the UARTE peripheral with RX/TX pins and interrupt binding.
+    // Initialize UARTE using pins from the Board struct
     let mut uart = Uarte::new(
-        p.UARTE1, p.P1_12, // RX pin (D7 on XIAO nRF52840 Sense)
-        p.P1_11, // TX pin (D6 on XIAO nRF52840 Sense)
-        Irqs,    // Interrupts for UARTE1
+        board.uarte1,
+        board.pins.d7_rx,
+        board.pins.d6_tx,
+        Irqs,
         config,
     );
 
