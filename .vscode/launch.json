@@ -1,0 +1,115 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Attach probe_rs",
+            "type": "probe-rs-debug",
+            // attach to the ALREADY running target
+            "request": "attach",
+            "cwd": "${workspaceFolder}",
+            //!MODIFY (or remove)
+            "speed": 1000,
+            "chip": "nRF52840_xxAA",
+            "wireProtocol": "Swd",
+            //!MODIFY (or remove)
+            // "probe": "VID:PID:<Serial>",
+            "flashingConfig": {
+                "flashingEnabled": true,
+                "haltAfterReset": true
+            },
+            "coreConfigs": [
+                {
+                    "coreIndex": 0,
+                    //!MODIFY
+                    "programBinary": "target/thumbv7em-none-eabihf/debug/embedded-nrf",
+                    //!MODIFY
+                    "svdFile": ".\\resources\\nrf52840.svd"
+                }
+            ],
+            "env": {
+                //!MODIFY (or remove)
+                // If you set this variable, check the VSCode console log window for the location of the log file.
+                "RUST_LOG": "info"
+            },
+            // Info, Debug
+            "consoleLogLevel": "Console"
+        },
+        {
+            "name": "Launch probe_rs",
+            "type": "probe-rs-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            //Speed of the debug probe in kHz, so 1000 means 1 MHz -- conservatively slow
+            "speed": 1000,
+            "chip": "nRF52840_xxAA",
+            "wireProtocol": "Swd",
+            "runtimeExecutable": "C:\\Users\\DanTh\\.cargo\\bin\\probe-rs.exe",
+            "logFile": "${workspaceFolder}\\probe-rs-debug.log",
+            //!MODIFY (or remove)
+            // "probe": "VID:PID:<Serial>",
+            "flashingConfig": {
+                "flashingEnabled": true,
+                "haltAfterReset": true
+            },
+            "coreConfigs": [
+                {
+                    "coreIndex": 0,
+                    //!MODIFY
+                    "programBinary": "target/thumbv7em-none-eabihf/debug/embedded-nrf",
+                    // //!MODIFY
+                    // "svdFile": ".\\resources\\nrf52840.svd"
+                }
+            ],
+            "env": {
+                //!MODIFY (or remove)
+                // If you set this variable, check the VSCode console log window for the location of the log file.
+                "RUST_LOG": "probe_rs=debug,probe_rs_debug=debug"
+            },
+            // Info, Debug
+            "consoleLogLevel": "Debug"
+        }
+        // {
+        //     "type": "probe-rs-debug",
+        //     "request": "launch",
+        //     "name": "probe-rs Test",
+        //     "cwd": "",
+        //     "connectUnderReset": false,
+        //     "chip": "STM32H745ZITx",
+        //     "flashingConfig": {
+        //         "flashingEnabled": true,
+        //         "verifyBeforeFlashing": true,
+        //         "verifyAfterFlashing": true,
+        //         "haltAfterReset": true
+        //     },
+        //     "coreConfigs": [
+        //         {
+        //             "coreIndex": 0,
+        //             "programBinary": "./target/thumbv7em-none-eabihf/debug/"
+        //         }
+        //     ]
+        // },
+        // {
+        //     "type": "probe-rs-debug",
+        //     "request": "launch",
+        //     "name": "probe-rs Test",
+        //     "cwd": "${workspaceFolder}",
+        //     "connectUnderReset": true,
+        //     "chip": "STM32H745ZITx",
+        //     "flashingConfig": {
+        //         "flashingEnabled": true,
+        //         "verifyBeforeFlashing": true,
+        //         "verifyAfterFlashing": true,
+        //         "haltAfterReset": true
+        //     },
+        //     "coreConfigs": [
+        //         {
+        //             "coreIndex": 0,
+        //             "programBinary": "./target/thumbv7em-none-eabihf/debug/${workspaceFolderBasename}"
+        //         }
+        //     ]
+        // }
+    ]
+}

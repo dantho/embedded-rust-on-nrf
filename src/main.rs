@@ -1,19 +1,19 @@
 #![no_std]
 #![no_main]
 
-use core::default::Default;
+// use core::default::Default;
 use core::str;
-use embassy_executor::Spawner;
-use embassy_time::{Duration, Timer};
-use embassy_nrf::peripherals;
-use embassy_nrf::uarte::{self, Config, Uarte};
-use embassy_nrf::{bind_interrupts};
-use embassy_nrf::gpio::{Level, Output};
-use embassy_nrf::uarte::Baudrate;
 use defmt_rtt as _;
-use panic_probe as _;
+use embassy_executor::Spawner;
+use embassy_nrf::{bind_interrupts};
+use embassy_nrf::peripherals;
+use embassy_nrf::gpio::{Level, Output};
+use embassy_nrf::uarte::{self, Baudrate, Config, Uarte};
+use embassy_time::{Duration, Timer};
 
-// Bind interrupt for USART
+// 1. BIND INTERRUPTS
+// The UART hardware generates interrupts when transmission finishes.
+// We must link the specific peripheral (UARTE1) to the Embassy handler.
 bind_interrupts!(struct Irqs {
     UARTE1 => uarte::InterruptHandler<peripherals::UARTE1>;
 });
@@ -23,8 +23,13 @@ bind_interrupts!(struct Irqs {
 async fn main(_spawner: Spawner) {
     let p = embassy_nrf::init(Default::default());
 
+    // Dan's own Board Support Package from the Seeed Studio XIAO nRF52840 Sense Schematic v1.1
+    let _red_led = p.P0_26;
+    let _green_led = p.P0_30;
+    let _blue_led = p.P0_06;
+
     // Initialize the LED (User LED on PA5)
-    let mut led = Output::new(p.P0_06, Level::Low, embassy_nrf::gpio::OutputDrive::Standard);
+    let mut led = Output::new(_green_led, Level::Low, embassy_nrf::gpio::OutputDrive::Standard);
 
     //Initialize the USART2 peripheral with DMA for CLI listening
     let mut config = Config::default();
@@ -39,15 +44,15 @@ async fn main(_spawner: Spawner) {
         config,
     );
 
-    // Send a welcome message
-    let _ = uart.write(b"Embassy CLI Ready. Type 'on' or 'off'.\r\n").await.unwrap();
+    // // Send a welcome message
+    // let _ = uart.write(b"Embassy CLI Ready. Type 'on' or 'off'.\r\n").await.unwrap();
     
     // The line bugger to hold incoming characters
     let mut line_buffer = [0u8; 64];
     let mut cursor = 0;
 
     led.toggle();
-    let _ = uart.write(b"LED on.\r\n").await.unwrap();
+    // let _ = uart.write(b"LED on.\r\n").await.unwrap();
     let _ = Timer::after(Duration::from_millis(500)).await;
     
     led.toggle();
