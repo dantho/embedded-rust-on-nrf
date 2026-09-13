@@ -1,6 +1,70 @@
+use core::ops::BitOr;
 use embassy_nrf::gpio::{Level, Output, OutputDrive};
 use embassy_nrf::peripherals::{P1_11, P1_12, UARTE1};
 use embassy_nrf::{Peri, Peripherals};
+
+/// 3-bit weighted RGB color enum representing all 8 additive color combinations.
+///
+/// Bit 0 (`0b001`) = Red
+/// Bit 1 (`0b010`) = Green
+/// Bit 2 (`0b100`) = Blue
+#[allow(dead_code)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, defmt::Format)]
+#[repr(u8)]
+pub enum Color {
+    /// No LEDs active (`0b000`)
+    Off = 0b000,
+    /// Red only (`0b001`)
+    Red = 0b001,
+    /// Green only (`0b010`)
+    Green = 0b010,
+    /// Red + Green (`0b011`)
+    Yellow = 0b011,
+    /// Blue only (`0b100`)
+    Blue = 0b100,
+    /// Red + Blue (`0b101`)
+    Magenta = 0b101,
+    /// Green + Blue (`0b110`)
+    Cyan = 0b110,
+    /// Red + Green + Blue (`0b111`)
+    White = 0b111,
+}
+
+#[allow(dead_code)]
+impl Color {
+    pub const fn red_active(self) -> bool {
+        (self as u8 & 0b001) != 0
+    }
+
+    pub const fn green_active(self) -> bool {
+        (self as u8 & 0b010) != 0
+    }
+
+    pub const fn blue_active(self) -> bool {
+        (self as u8 & 0b100) != 0
+    }
+
+    pub const fn from_bits(bits: u8) -> Self {
+        match bits & 0b111 {
+            1 => Color::Red,
+            2 => Color::Green,
+            3 => Color::Yellow,
+            4 => Color::Blue,
+            5 => Color::Magenta,
+            6 => Color::Cyan,
+            7 => Color::White,
+            _ => Color::Off,
+        }
+    }
+}
+
+impl BitOr for Color {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Color::from_bits((self as u8) | (rhs as u8))
+    }
+}
 
 /// Onboard RGB LEDs (Active-Low: LOW = ON, HIGH = OFF)
 #[allow(dead_code)]
@@ -11,6 +75,17 @@ pub struct Leds {
     pub green: Output<'static>,
     /// Blue LED (P0.06 - dedicated onboard LED, no external pin conflict)
     pub blue: Output<'static>,
+}
+
+#[allow(dead_code)]
+impl Leds {
+    /// Set all three onboard LEDs according to the given composite color.
+    pub fn set_color(&mut self, color: Color) {
+        // Active-low: LOW enables the LED, HIGH disables it
+        if color.red_active() { self.red.set_low(); } else { self.red.set_high(); }
+        if color.green_active() { self.green.set_low(); } else { self.green.set_high(); }
+        if color.blue_active() { self.blue.set_low(); } else { self.blue.set_high(); }
+    }
 }
 
 /// External header pins for UART communication

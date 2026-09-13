@@ -3,7 +3,7 @@
 
 mod bsp;
 
-use bsp::Board;
+use bsp::{Board, Color};
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_nrf::bind_interrupts;
@@ -24,12 +24,9 @@ async fn main(_spawner: Spawner) {
     let p = embassy_nrf::init(Default::default());
     let mut board = Board::init(p);
 
-    // Using the Blue LED from the BSP
-    let led = &mut board.leds.blue;
-
     defmt::info!("Embassy initialized, starting blink sequence...");
-    for _ in 0..8 {
-        led.toggle();
+    for cbits in 1..=8 {
+        board.leds.set_color(Color::from_bits(cbits));
         let _ = Timer::after(Duration::from_millis(250)).await;
     }
 
@@ -77,12 +74,12 @@ async fn main(_spawner: Spawner) {
                     // Ignore empty commands, which will occur due to naive processing of windows newlines (\r\n)
                 }
                 "on" => {
-                    led.set_low();
+                    board.leds.set_color(Color::Cyan);
                     defmt::info!("Command received: ON");
                     let _ = uart.write(b"LED turned on.\r\n").await.unwrap();
                 }
                 "off" => {
-                    led.set_high();
+                    board.leds.set_color(Color::Magenta);
                     defmt::info!("Command received: OFF");
                     let _ = uart.write(b"LED turned off.\r\n").await.unwrap();
                 }
@@ -120,4 +117,5 @@ async fn main(_spawner: Spawner) {
             }
         }
     }
+    // defmt::info!("Exiting main loop.");
 }
