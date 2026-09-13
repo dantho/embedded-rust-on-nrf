@@ -27,7 +27,7 @@ embassy-time = { version = "0.5", features = ["defmt", "defmt-timestamp-uptime-u
 embassy-sync = { version = "0.8", features = ["defmt"] }
 embassy-futures = "0.1"
 embassy-nrf = { version = "0.10.0", default-features = false, features = [
-        # "rt",
+        "rt",
         "nrf52840",
         "gpiote",
         # RTC0 + TIMER0 are owned by the MPSL, so the time driver must live on RTC1.
