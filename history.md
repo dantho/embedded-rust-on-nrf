@@ -46,3 +46,9 @@ The probe-rs debugging setup is validated end-to-end:
 | **`Magenta`** | `1 0 1` | `0b101` | `5` | Red + Blue |
 | **`Cyan`** | `1 1 0` | `0b110` | `6` | Green + Blue |
 | **`White`** | `1 1 1` | `0b111` | `7` | **Red + Green + Blue** |
+
+- **Decoupled Task Architecture (`embassy-sync` Channels)**:
+  - **`LED_CHANNEL`**: MPSC channel for color updates processed sequentially by `led_task`.
+  - **`UART_TX_CHANNEL`**: MPSC channel for outbound UART strings/bytes, processed by `uart_task`'s TX loop.
+  - **`UART_RX_CHANNEL`**: SPSC/MPSC channel streaming received bytes from `uart_task`'s RX loop to consumer tasks (such as the CLI parser in `main`).
+  - **`uart_task` Concurrency**: Splits `Uarte` into TX and RX sub-drivers and runs both concurrently via `embassy_futures::join::join(tx_loop, rx_loop)`.
