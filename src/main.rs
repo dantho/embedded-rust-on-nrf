@@ -138,6 +138,11 @@ async fn main(spawner: Spawner) {
 
     // Send a welcome message via the TX channel
     UART_TX_CHANNEL.send(UartTxMsg::from("Embassy CLI Ready. Type 'on', 'off', 'help', or 'panic'.\r\n")).await;
+    // Binary of above:
+    // "on" - 6f6e0a
+    // "off" - 6f66660a
+    // "help" - 68656c700a
+    // "panic" - 70616e69630a
 
     // The line buffer to hold incoming characters
     let mut line_buffer = [0u8; 64];
@@ -159,26 +164,26 @@ async fn main(spawner: Spawner) {
                 }
                 "on" => {
                     LED_CHANNEL.send(Color::Cyan).await;
-                    defmt::info!("Command received: ON");
                     UART_TX_CHANNEL.send(UartTxMsg::from("LED turned on.\r\n")).await;
+                    defmt::info!("Command received: ON");
                 }
                 "off" => {
                     LED_CHANNEL.send(Color::Off).await;
+                    UART_TX_CHANNEL.send(UartTxMsg::from("LED turned on.\r\n")).await;
                     defmt::info!("Command received: OFF");
-                    UART_TX_CHANNEL.send(UartTxMsg::from("LED turned off.\r\n")).await;
                 }
                 "help" => {
                     UART_TX_CHANNEL
-                        .send(UartTxMsg::from("Available commands: on, off, help, panic\r\n"))
-                        .await;
+                        .send(UartTxMsg::from("Available commands: on, off, help, panic\r\n")).await;
+                    defmt::info!("Help command received via CLI!");
                 }
                 "panic" => {
                     UART_TX_CHANNEL.send(UartTxMsg::from("Triggering deliberate panic...\r\n")).await;
-                    defmt::error!("Deliberate panic triggered via CLI command!");
                     defmt::panic!("Deliberate test panic for panic-probe verification!");
                 }
                 _ => {
                     UART_TX_CHANNEL.send(UartTxMsg::from("Unknown command.\r\n")).await;
+                    defmt::info!("Unknown command received via CLI!");
                 }
             }
             // 4. Reset the cursor for the next command
