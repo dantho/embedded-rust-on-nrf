@@ -52,3 +52,28 @@ The probe-rs debugging setup is validated end-to-end:
   - **`UART_TX_CHANNEL`**: MPSC channel for outbound UART strings/bytes, processed by `uart_task`'s TX loop.
   - **`UART_RX_CHANNEL`**: SPSC/MPSC channel streaming received bytes from `uart_task`'s RX loop to consumer tasks (such as the CLI parser in `main`).
   - **`uart_task` Concurrency**: Splits `Uarte` into TX and RX sub-drivers and runs both concurrently via `embassy_futures::join::join(tx_loop, rx_loop)`.
+
+# IMU Register CLI (Onboard LSM6DS3TR-C)
+
+Added a minimal, inspectable CLI for the onboard 6-axis IMU on the Seeed Studio XIAO nRF52840 Sense: `imu-status`, `imu-r <reg>`, and `imu-w <reg> <value>`. Boot-time configuration was later added (see below) once the register CLI foundation was validated on hardware.
+
+## Architecture
+
+- New task module [src/main_imu.rs](src/main_imu.rs) owns the `Twim` I2C driver exclusively, following the same channel/task pattern as `main_leds.rs`: a `Channel<ImuCommand>` + `ImuSender`/`sender()`, and an `imu_task` that processes commands in a loop.
+- The IMU task replies directly to UART via a new `main_uart::UartTxSender`/`tx_sender()`, rather than routing responses back through `cli_task` — this keeps `cli_task` a pure dispatcher and lets the IMU task own all response formatting.
+- `src/bsp.rs` owns the onboard IMU's dedicated peripherals: `twispi1`, `imu_sda`, `imu_scl`, and `imu_power` (see gotchas below).
+
+## Key Findings & Gotchas
+
+- **Wrong I2C bus is a silent, indefinite hang, not a clean error.** The onboard LSM6DS3TR-C is wired to `TWISPI1` with SDA=`P0.07`/SCL=`P0.27` — **not** the exposed `D4`/`D5` header pins (`P0.04`/`P0.05`, which live on `TWISPI0`). Talking to the wrong/open bus caused `Twim::write_read(...).await` to hang forever: `Twim::async_wait()` waits for a `STOPPED`/`ERROR` interrupt event that never fires on a floating bus, unlike a real address-NACK which resolves almost instantly. Confirmed by cross-referencing a working sibling project (`../xiao-blinky`) for the same board.
+- **The onboard IMU/mic power rail is gated by `P1.08`.** It must be driven `Level::High` with `OutputDrive::HighDrive` and held alive for the program's lifetime (never dropped — `main.rs` binds it to `let _imu_power = board.imu_power;`), plus a ~10ms settle delay before the first I2C transaction. Without this, the sensor has no power regardless of correct pins.
+- **Internal SDA/SCL pull-ups were a red herring.** An earlier fix attempt enabled `Twim::Config`'s internal pull-ups as a defensive measure; the known-working reference leaves them at default (`false`/`false`), confirming pins + power were the real fix, not pull-ups.
+- **I2C address**: probe `0x6A` first, then fall back to `0x6B` (`IMU_ADDR_PRIMARY`/`IMU_ADDR_SECONDARY`), and remember whichever address responded for subsequent `imu-r`/`imu-w` calls in the `imu_task`'s local state (`imu_addr: Option<u8>`).
+- **`WHO_AM_I` (register `0x0F`) expected value is `0x6A`, not `0x69`, for this specific chip.** ST's plain LSM6DS3 reports `0x69`; the **LSM6DS3TR-C** variant actually populated on this board reports `0x6A`. Verified on real hardware. Note this numerically coincides with `IMU_ADDR_PRIMARY = 0x6A` (I2C address) — same value, different meaning, not a bug.
+- **Defensive timeout**: every I2C transaction in `main_imu.rs` is wrapped in a 100ms `embassy_time::with_timeout`, distinguishing `ImuIoError::Timeout` from `ImuIoError::Bus(twim::Error)` (the latter logged via `defmt::warn!`). This means a genuine future wiring/config regression reports a clear UART error instead of hanging the IMU task forever.
+- **`Twim::new(twim_peri, irq, sda, scl, config, tx_ram_buffer)`** — note `irq` comes before `sda`/`scl`. The `tx_ram_buffer: &mut [u8]` argument only matters for write buffers that aren't in RAM (e.g. static data placed in flash); since our writes are always built from stack arrays, an empty `&mut []` is sufficient.
+- **Boot-time configuration**, copied from the working `../xiao-blinky` reference: on `imu_task` startup, `init_imu()` probes for the sensor and, if found, writes `CTRL1_XL` (`0x10`) and `CTRL2_G` (`0x11`) to `0x40` — 104 Hz output data rate, ±2g accelerometer range, ±250dps gyro range. The result (`configured OK`/`config FAILED`/`not found`) is reported once over UART at boot. This intentionally reverses the earlier "no boot-time config" decision now that the register CLI foundation is validated on hardware; `imu-w` still allows overriding these registers manually afterward.
+
+## Status
+
+Confirmed working end-to-end on real hardware: `imu-status`, `imu-r`, and `imu-w` all function against the onboard LSM6DS3TR-C. Deferred/optional: bumping I2C frequency to `K400` (cosmetic parity with the reference project, not required for correctness), and further commands (streaming, calibration, boot-time configuration) remain out of scope by design.

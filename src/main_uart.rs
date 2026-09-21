@@ -103,7 +103,7 @@ async fn cli_task(led_sender: ColorSender, imu_sender: ImuSender) {
     defmt::info!("UART CLI task started.");
     UART_TX_CHANNEL
         .send(UartTxMsg::from(
-            "Embassy CLI Ready. Type on, off, imu-status, imu-r, imu-w, panic, or help.",
+            "Embassy CLI Ready. Type on, off, imu-status, imu-r, imu-w, imu-read, panic, or help.",
         ))
         .await;
 
@@ -137,7 +137,7 @@ async fn cli_task(led_sender: ColorSender, imu_sender: ImuSender) {
                 "help" => {
                     UART_TX_CHANNEL
                         .send(UartTxMsg::from(
-                            "Available commands: on, off, help, imu-status, imu-r <reg>, imu-w <reg> <value>, panic",
+                            "Available commands: on, off, help, imu-status, imu-r <reg>, imu-w <reg> <value>, imu-read, panic",
                         ))
                         .await;
                     defmt::info!("Help command received via CLI!");
@@ -168,6 +168,10 @@ async fn cli_task(led_sender: ColorSender, imu_sender: ImuSender) {
                             .await;
                     }
                 },
+                "imu-read" => {
+                    imu_sender.send(ImuCommand::Sample).await;
+                    defmt::info!("Command received: IMU-READ");
+                }
                 "panic" => {
                     UART_TX_CHANNEL
                         .send(UartTxMsg::from("Triggering deliberate panic..."))

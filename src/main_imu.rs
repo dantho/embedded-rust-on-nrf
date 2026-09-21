@@ -20,6 +20,17 @@ const IMU_ADDR_SECONDARY: u8 = 0x6B;
 const WHO_AM_I_REG: u8 = 0x0F;
 const WHO_AM_I_EXPECTED: u8 = 0x6A;
 
+// Boot-time config, copied from ../xiao-blinky: 104 Hz ODR, +/-2g accel FS, +/-250dps gyro FS.
+const CTRL1_XL_REG: u8 = 0x10;
+const CTRL2_G_REG: u8 = 0x11;
+const ODR_104HZ_2G_250DPS: u8 = 0x40;
+
+// Gyro X/Y/Z then accel X/Y/Z, 2 bytes each, auto-incrementing from OUTX_L_G.
+const OUT_START_REG: u8 = 0x22;
+// Sensitivity at the configured +/-2g / +/-250dps full-scale range (LSM6DS3TR-C datasheet).
+const ACCEL_G_PER_LSB: f32 = 0.000061;
+const GYRO_DPS_PER_LSB: f32 = 0.00875;
+
 // A stuck/floating I2C bus never raises STOPPED/ERROR, so bound every transaction.
 const I2C_TIMEOUT: Duration = Duration::from_millis(100);
 
@@ -34,6 +45,7 @@ pub enum ImuCommand {
     Status,
     ReadReg { reg: u8 },
     WriteReg { reg: u8, value: u8 },
+    Sample,
 }
 
 static IMU_CHANNEL: Channel<CriticalSectionRawMutex, ImuCommand, 4> = Channel::new();
@@ -51,8 +63,8 @@ pub fn spawn(spawner: Spawner, twim: Twim<'static>, uart_tx: UartTxSender) {
 #[embassy_executor::task]
 async fn imu_task(mut twim: Twim<'static>, uart_tx: UartTxSender) {
     defmt::info!("IMU task started.");
-    // Remembered from the last successful probe; defaults to the primary address until known.
-    let mut imu_addr: Option<u8> = None;
+    // Remembered from boot probe or the last `imu-status`; defaults to the primary address until known.
+    let mut imu_addr: Option<u8> = init_imu(&mut twim, &uart_tx).await;
     loop {
         let command = IMU_CHANNEL.receive().await;
         let mut msg: String<64> = String::new();
@@ -109,6 +121,25 @@ async fn imu_task(mut twim: Twim<'static>, uart_tx: UartTxSender) {
                     }
                 }
             }
+            ImuCommand::Sample => {
+                let addr = imu_addr.unwrap_or(IMU_ADDR_PRIMARY);
+                match read_sample(&mut twim, addr).await {
+                    Ok([gx, gy, gz, ax, ay, az]) => {
+                        let _ = write!(
+                            msg,
+                            "A:{:+.2},{:+.2},{:+.2}g G:{:+.1},{:+.1},{:+.1}dps\n",
+                            ax, ay, az, gx, gy, gz
+                        );
+                    }
+                    Err(ImuIoError::Timeout) => {
+                        let _ = write!(msg, "IMU sample read timed out\n");
+                    }
+                    Err(ImuIoError::Bus(e)) => {
+                        defmt::warn!("IMU sample bus error: {}", e);
+                        let _ = write!(msg, "IMU sample read error\n");
+                    }
+                }
+            }
         }
         uart_tx.send(UartTxMsg::from(msg)).await;
     }
@@ -123,6 +154,64 @@ async fn probe(twim: &mut Twim<'static>) -> Option<(u8, u8)> {
         return Some((IMU_ADDR_SECONDARY, value));
     }
     None
+}
+
+/// Probe and apply the boot-time ODR/range config once, reporting the outcome over UART.
+async fn init_imu(twim: &mut Twim<'static>, uart_tx: &UartTxSender) -> Option<u8> {
+    let mut msg: String<64> = String::new();
+    let imu_addr = match probe(twim).await {
+        Some((addr, who_am_i)) => {
+            match configure(twim, addr).await {
+                Ok(()) => {
+                    let _ = write!(
+                        msg,
+                        "IMU init: 0x{:02X} WHO_AM_I=0x{:02X} configured OK\n",
+                        addr, who_am_i
+                    );
+                }
+                Err(_) => {
+                    let _ = write!(
+                        msg,
+                        "IMU init: 0x{:02X} WHO_AM_I=0x{:02X} config FAILED\n",
+                        addr, who_am_i
+                    );
+                }
+            }
+            Some(addr)
+        }
+        None => {
+            let _ = write!(msg, "IMU init: not found at 0x6A or 0x6B\n");
+            None
+        }
+    };
+    uart_tx.send(UartTxMsg::from(msg)).await;
+    imu_addr
+}
+
+/// Set accelerometer/gyro output data rate and full-scale range.
+async fn configure(twim: &mut Twim<'static>, addr: u8) -> Result<(), ImuIoError> {
+    write_reg(twim, addr, CTRL1_XL_REG, ODR_104HZ_2G_250DPS).await?;
+    write_reg(twim, addr, CTRL2_G_REG, ODR_104HZ_2G_250DPS).await?;
+    Ok(())
+}
+
+/// Read the gyro+accel burst and convert to dps/g using the configured full-scale range.
+async fn read_sample(twim: &mut Twim<'static>, addr: u8) -> Result<[f32; 6], ImuIoError> {
+    let mut buf = [0u8; 12];
+    with_timeout(I2C_TIMEOUT, twim.write_read(addr, &[OUT_START_REG], &mut buf))
+        .await
+        .map_err(|_| ImuIoError::Timeout)?
+        .map_err(ImuIoError::Bus)?;
+
+    let axis = |lo: usize| i16::from_le_bytes([buf[lo], buf[lo + 1]]) as f32;
+    Ok([
+        axis(0) * GYRO_DPS_PER_LSB,
+        axis(2) * GYRO_DPS_PER_LSB,
+        axis(4) * GYRO_DPS_PER_LSB,
+        axis(6) * ACCEL_G_PER_LSB,
+        axis(8) * ACCEL_G_PER_LSB,
+        axis(10) * ACCEL_G_PER_LSB,
+    ])
 }
 
 async fn read_reg(twim: &mut Twim<'static>, addr: u8, reg: u8) -> Result<u8, ImuIoError> {
