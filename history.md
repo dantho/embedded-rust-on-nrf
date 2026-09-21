@@ -86,3 +86,11 @@ A:-0.15,+0.66,+0.81g G:+125.5,+60.5,-181.6dps
 ```
 
 The dominant gyro rate (`Gz=-181.6dps`) correctly lands on the axis being rotated, confirming axis mapping and sign are consistent with the physical rotation.
+
+## Next Steps
+
+- Bump I2C frequency to `K400` for cosmetic parity with the `../xiao-blinky` reference (not required for correctness).
+- **Set up and detect IMU hardware interrupts** (via the LSM6DS3TR-C's `INT1`/`INT2` lines and `INT1_CTRL`/`INT2_CTRL`/`TAP_CFG`/`WAKE_UP_*`/`FREE_FALL` registers), specifically:
+  - **Free-fall detection** — configure the free-fall threshold/duration registers and route the free-fall interrupt to an `INT` pin so the MCU can react to a true free-fall event instead of polling `imu-read`.
+  - **Acceleration-above-threshold (wake-up) detection** — configure the wake-up threshold/duration registers to interrupt when acceleration exceeds a set level. This is intended to detect *exiting* free fall (impact) as well as to support startup-on-motion-detect (waking the app from an otherwise idle state).
+- Streaming and calibration commands remain out of scope by design.
