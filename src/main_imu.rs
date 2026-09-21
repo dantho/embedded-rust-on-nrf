@@ -198,7 +198,10 @@ async fn configure(twim: &mut Twim<'static>, addr: u8) -> Result<(), ImuIoError>
 /// Read the gyro+accel burst and convert to dps/g using the configured full-scale range.
 async fn read_sample(twim: &mut Twim<'static>, addr: u8) -> Result<[f32; 6], ImuIoError> {
     let mut buf = [0u8; 12];
-    with_timeout(I2C_TIMEOUT, twim.write_read(addr, &[OUT_START_REG], &mut buf))
+    // A bare `&[OUT_START_REG]` is a const array literal the compiler can place in flash,
+    // which DMA can't read; bind it to a local so it's guaranteed to live in RAM.
+    let start_reg = [OUT_START_REG];
+    with_timeout(I2C_TIMEOUT, twim.write_read(addr, &start_reg, &mut buf))
         .await
         .map_err(|_| ImuIoError::Timeout)?
         .map_err(ImuIoError::Bus)?;
