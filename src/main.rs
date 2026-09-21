@@ -2,13 +2,13 @@
 #![no_main]
 
 mod bsp;
-#[path = "main_leds.rs"]
 mod main_leds;
-#[path = "main_uart.rs"]
 mod main_uart;
+mod main_imu;
 
 use bsp::Board;
 use embassy_executor::Spawner;
+use embassy_nrf::twim::{self, Twim};
 use embassy_nrf::uarte::{Baudrate, Config, Uarte};
 use embassy_time::{Duration, Timer};
 use defmt_rtt as _;
@@ -19,6 +19,7 @@ async fn main(spawner: Spawner) {
     let p = embassy_nrf::init(Default::default());
     let board = Board::init(p);
     let led_sender = main_leds::sender();
+    let imu_sender = main_imu::sender();
 
     main_leds::spawn(spawner, board.leds);
 
@@ -31,7 +32,17 @@ async fn main(spawner: Spawner) {
         main_uart::Irqs,
         config,
     );
-    main_uart::spawn(spawner, uart, led_sender);
+    main_uart::spawn(spawner, uart, led_sender, imu_sender);
+
+    let twim = Twim::new(
+        board.twispi0,
+        main_imu::Irqs,
+        board.pins.d4_sda,
+        board.pins.d5_scl,
+        twim::Config::default(),
+        &mut [],
+    );
+    main_imu::spawn(spawner, twim, main_uart::tx_sender());
 
     defmt::info!("Embassy initialized, starting blink sequence...");
     for cbits in 1..=8 {

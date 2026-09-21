@@ -5,10 +5,11 @@ use embassy_nrf::bind_interrupts;
 use embassy_nrf::peripherals;
 use embassy_nrf::uarte::{self, Uarte};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-use embassy_sync::channel::Channel;
+use embassy_sync::channel::{Channel, Sender};
 use heapless::String;
 
 use crate::bsp::Color;
+use crate::main_imu::{ImuCommand, ImuSender};
 use crate::main_leds::ColorSender;
 
 bind_interrupts!(pub struct Irqs {
@@ -53,9 +54,24 @@ impl From<String<64>> for UartTxMsg {
 static UART_TX_CHANNEL: Channel<CriticalSectionRawMutex, UartTxMsg, 8> = Channel::new();
 static UART_RX_CHANNEL: Channel<CriticalSectionRawMutex, u8, 64> = Channel::new();
 
-pub fn spawn(spawner: Spawner, uart: Uarte<'static>, led_sender: ColorSender) {
+pub type UartTxSender = Sender<'static, CriticalSectionRawMutex, UartTxMsg, 8>;
+
+pub fn tx_sender() -> UartTxSender {
+    UART_TX_CHANNEL.sender()
+}
+
+pub fn spawn(spawner: Spawner, uart: Uarte<'static>, led_sender: ColorSender, imu_sender: ImuSender) {
     spawner.must_spawn(uart_task(uart));
-    spawner.must_spawn(cli_task(led_sender));
+    spawner.must_spawn(cli_task(led_sender, imu_sender));
+}
+
+/// Parse a register address or value as hex (`0x` prefix) or decimal.
+fn parse_u8(text: &str) -> Option<u8> {
+    if let Some(hex) = text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")) {
+        u8::from_str_radix(hex, 16).ok()
+    } else {
+        text.parse().ok()
+    }
 }
 
 #[embassy_executor::task]
@@ -83,11 +99,11 @@ async fn uart_task(uart: Uarte<'static>) {
 }
 
 #[embassy_executor::task]
-async fn cli_task(led_sender: ColorSender) {
+async fn cli_task(led_sender: ColorSender, imu_sender: ImuSender) {
     defmt::info!("UART CLI task started.");
     UART_TX_CHANNEL
         .send(UartTxMsg::from(
-            "Embassy CLI Ready. Type 'on', 'off', 'help', or 'panic'.\r\n",
+            "Embassy CLI Ready. Type on, off, imu-status, imu-r, imu-w, panic, or help.",
         ))
         .await;
 
@@ -98,41 +114,69 @@ async fn cli_task(led_sender: ColorSender) {
         let byte = UART_RX_CHANNEL.receive().await;
         UART_TX_CHANNEL.send(UartTxMsg::from(byte)).await;
 
-        if byte == b'\r' || byte == b'\n' {
+        if byte == b'\r' || byte == b'\n' || byte == b'\\' || byte == b'/' {
             let command = str::from_utf8(&line_buffer[..cursor]).unwrap_or("");
-            match command {
+            let mut parts = command.split_whitespace();
+            let cmd = parts.next().unwrap_or("");
+            match cmd {
                 "" => {}
                 "on" => {
                     led_sender.send(Color::Cyan).await;
                     UART_TX_CHANNEL
-                        .send(UartTxMsg::from("LED turned on.\r\n"))
+                        .send(UartTxMsg::from("LED turned on."))
                         .await;
                     defmt::info!("Command received: ON");
                 }
                 "off" => {
                     led_sender.send(Color::Off).await;
                     UART_TX_CHANNEL
-                        .send(UartTxMsg::from("LED turned off.\r\n"))
+                        .send(UartTxMsg::from("LED turned off."))
                         .await;
                     defmt::info!("Command received: OFF");
                 }
                 "help" => {
                     UART_TX_CHANNEL
                         .send(UartTxMsg::from(
-                            "Available commands: on, off, help, panic\r\n",
+                            "Available commands: on, off, help, imu-status, imu-r <reg>, imu-w <reg> <value>, panic",
                         ))
                         .await;
                     defmt::info!("Help command received via CLI!");
                 }
+                "imu-status" => {
+                    imu_sender.send(ImuCommand::Status).await;
+                    defmt::info!("Command received: IMU-STATUS");
+                }
+                "imu-r" => match parts.next().and_then(parse_u8) {
+                    Some(reg) => {
+                        imu_sender.send(ImuCommand::ReadReg { reg }).await;
+                        defmt::info!("Command received: IMU-R {=u8:#04x}", reg);
+                    }
+                    None => {
+                        UART_TX_CHANNEL
+                            .send(UartTxMsg::from("Usage: imu-r <reg>"))
+                            .await;
+                    }
+                },
+                "imu-w" => match (parts.next().and_then(parse_u8), parts.next().and_then(parse_u8)) {
+                    (Some(reg), Some(value)) => {
+                        imu_sender.send(ImuCommand::WriteReg { reg, value }).await;
+                        defmt::info!("Command received: IMU-W {=u8:#04x} {=u8:#04x}", reg, value);
+                    }
+                    _ => {
+                        UART_TX_CHANNEL
+                            .send(UartTxMsg::from("Usage: imu-w <reg> <value>"))
+                            .await;
+                    }
+                },
                 "panic" => {
                     UART_TX_CHANNEL
-                        .send(UartTxMsg::from("Triggering deliberate panic...\r\n"))
+                        .send(UartTxMsg::from("Triggering deliberate panic..."))
                         .await;
                     defmt::panic!("Deliberate test panic for panic-probe verification!");
                 }
                 _ => {
                     UART_TX_CHANNEL
-                        .send(UartTxMsg::from("Unknown command.\r\n"))
+                        .send(UartTxMsg::from("Unknown command."))
                         .await;
                     defmt::info!("Unknown command received via CLI!");
                 }
