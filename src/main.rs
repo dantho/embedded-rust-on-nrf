@@ -18,6 +18,8 @@ use panic_probe as _;
 async fn main(spawner: Spawner) {
     let p = embassy_nrf::init(Default::default());
     let board = Board::init(p);
+    // Keep the IMU/mic power rail enabled for the program's lifetime.
+    let _imu_power = board.imu_power;
     let led_sender = main_leds::sender();
     let imu_sender = main_imu::sender();
 
@@ -34,11 +36,13 @@ async fn main(spawner: Spawner) {
     );
     main_uart::spawn(spawner, uart, led_sender, imu_sender);
 
+    // board.imu_power was already driven high in Board::init(); let the rail settle.
+    Timer::after(Duration::from_millis(10)).await;
     let twim = Twim::new(
-        board.twispi0,
+        board.twispi1,
         main_imu::Irqs,
-        board.pins.d4_sda,
-        board.pins.d5_scl,
+        board.imu_sda,
+        board.imu_scl,
         twim::Config::default(),
         &mut [],
     );

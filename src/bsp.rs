@@ -1,6 +1,6 @@
 use core::ops::BitOr;
 use embassy_nrf::gpio::{Level, Output, OutputDrive};
-use embassy_nrf::peripherals::{P0_04, P0_05, P1_11, P1_12, TWISPI0, UARTE1};
+use embassy_nrf::peripherals::{P0_07, P0_27, P1_11, P1_12, TWISPI1, UARTE1};
 use embassy_nrf::{Peri, Peripherals};
 
 /// 3-bit weighted RGB color enum representing all 8 additive color combinations.
@@ -88,16 +88,12 @@ impl Leds {
     }
 }
 
-/// External header pins for UART and I2C communication
+/// External header pins for UART communication
 pub struct HeaderPins {
     /// TX Pin (D6 on XIAO Sense / MCU P1.11)
     pub d6_tx: Peri<'static, P1_11>,
     /// RX Pin (D7 on XIAO Sense / MCU P1.12)
     pub d7_rx: Peri<'static, P1_12>,
-    /// I2C SDA Pin (D4 on XIAO Sense / MCU P0.04) - shared with the onboard IMU
-    pub d4_sda: Peri<'static, P0_04>,
-    /// I2C SCL Pin (D5 on XIAO Sense / MCU P0.05) - shared with the onboard IMU
-    pub d5_scl: Peri<'static, P0_05>,
 }
 
 /// Board Support Package abstraction for Seeed Studio XIAO nRF52840 (Sense)
@@ -105,8 +101,14 @@ pub struct Board {
     pub leds: Leds,
     pub pins: HeaderPins,
     pub uarte1: Peri<'static, UARTE1>,
-    /// I2C/TWI peripheral shared with the onboard LSM6DS3TR-C IMU
-    pub twispi0: Peri<'static, TWISPI0>,
+    /// Internal I2C bus wired to the onboard LSM6DS3TR-C IMU (not exposed on the header)
+    pub twispi1: Peri<'static, TWISPI1>,
+    /// IMU I2C SDA (internal, MCU P0.07)
+    pub imu_sda: Peri<'static, P0_07>,
+    /// IMU I2C SCL (internal, MCU P0.27)
+    pub imu_scl: Peri<'static, P0_27>,
+    /// IMU/mic power rail enable (MCU P1.08) - must be driven high before the IMU responds
+    pub imu_power: Output<'static>,
 }
 
 impl Board {
@@ -122,11 +124,12 @@ impl Board {
             pins: HeaderPins {
                 d6_tx: p.P1_11,
                 d7_rx: p.P1_12,
-                d4_sda: p.P0_04,
-                d5_scl: p.P0_05,
             },
             uarte1: p.UARTE1,
-            twispi0: p.TWISPI0,
+            twispi1: p.TWISPI1,
+            imu_sda: p.P0_07,
+            imu_scl: p.P0_27,
+            imu_power: Output::new(p.P1_08, Level::High, OutputDrive::HighDrive),
         }
     }
 }
