@@ -1,7 +1,13 @@
 use core::ops::BitOr;
 use embassy_nrf::gpio::{Level, Output, OutputDrive};
-use embassy_nrf::peripherals::{P0_07, P0_27, P1_11, P1_12, TWISPI1, UARTE1};
-use embassy_nrf::{Peri, Peripherals};
+use embassy_nrf::peripherals::{P1_11, P1_12, TWISPI1, UARTE1};
+use embassy_nrf::twim::{self, Twim};
+use embassy_nrf::{bind_interrupts, Peri, Peripherals};
+use embassy_time::{Duration, Timer};
+
+bind_interrupts!(struct Irqs {
+    TWISPI1 => twim::InterruptHandler<TWISPI1>;
+});
 
 /// 3-bit weighted RGB color enum representing all 8 additive color combinations.
 ///
@@ -102,18 +108,26 @@ pub struct Board {
     pub pins: HeaderPins,
     pub uarte1: Peri<'static, UARTE1>,
     /// Internal I2C bus wired to the onboard LSM6DS3TR-C IMU (not exposed on the header)
-    pub twispi1: Peri<'static, TWISPI1>,
-    /// IMU I2C SDA (internal, MCU P0.07)
-    pub imu_sda: Peri<'static, P0_07>,
-    /// IMU I2C SCL (internal, MCU P0.27)
-    pub imu_scl: Peri<'static, P0_27>,
+    pub twim: Twim<'static>,
     /// IMU/mic power rail enable (MCU P1.08) - must be driven high before the IMU responds
     pub imu_power: Output<'static>,
 }
 
 impl Board {
     /// Initialize the XIAO Sense board peripherals from the HAL singleton.
-    pub fn init(p: Peripherals) -> Self {
+    pub async fn init(p: Peripherals) -> Self {
+        let imu_power = Output::new(p.P1_08, Level::High, OutputDrive::HighDrive);
+        // Let the IMU/mic power rail settle before the bus is used.
+        Timer::after(Duration::from_millis(10)).await;
+        let twim = Twim::new(
+            p.TWISPI1,
+            Irqs,
+            p.P0_07,
+            p.P0_27,
+            twim::Config::default(),
+            &mut [],
+        );
+
         Self {
             leds: Leds {
                 // Initialize all LEDs as OFF (High)
@@ -126,10 +140,8 @@ impl Board {
                 d7_rx: p.P1_12,
             },
             uarte1: p.UARTE1,
-            twispi1: p.TWISPI1,
-            imu_sda: p.P0_07,
-            imu_scl: p.P0_27,
-            imu_power: Output::new(p.P1_08, Level::High, OutputDrive::HighDrive),
+            twim,
+            imu_power,
         }
     }
 }

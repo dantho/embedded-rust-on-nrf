@@ -1,18 +1,12 @@
 use core::fmt::Write as _;
 use embassy_executor::Spawner;
-use embassy_nrf::bind_interrupts;
-use embassy_nrf::peripherals;
-use embassy_nrf::twim::{self, Twim};
+use embassy_nrf::twim::Twim;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::{Channel, Sender};
 use heapless::String;
 
 use crate::lsm6ds3::{ImuIoError, Lsm6ds3};
 use crate::main_uart::{UartTxMsg, UartTxSender};
-
-bind_interrupts!(pub struct Irqs {
-    TWISPI1 => twim::InterruptHandler<peripherals::TWISPI1>;
-});
 
 #[derive(Clone, Copy)]
 pub enum ImuCommand {

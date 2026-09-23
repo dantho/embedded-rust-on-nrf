@@ -9,7 +9,6 @@ mod main_imu;
 
 use bsp::Board;
 use embassy_executor::Spawner;
-use embassy_nrf::twim::{self, Twim};
 use embassy_nrf::uarte::{Baudrate, Config, Uarte};
 use embassy_time::{Duration, Timer};
 use defmt_rtt as _;
@@ -18,7 +17,7 @@ use panic_probe as _;
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     let p = embassy_nrf::init(Default::default());
-    let board = Board::init(p);
+    let board = Board::init(p).await;
     // Keep the IMU/mic power rail enabled for the program's lifetime.
     let _imu_power = board.imu_power;
     let led_sender = main_leds::sender();
@@ -37,17 +36,7 @@ async fn main(spawner: Spawner) {
     );
     main_uart::spawn(spawner, uart, led_sender, imu_sender);
 
-    // board.imu_power was already driven high in Board::init(); let the rail settle.
-    Timer::after(Duration::from_millis(10)).await;
-    let twim = Twim::new(
-        board.twispi1,
-        main_imu::Irqs,
-        board.imu_sda,
-        board.imu_scl,
-        twim::Config::default(),
-        &mut [],
-    );
-    main_imu::spawn(spawner, twim, main_uart::tx_sender());
+    main_imu::spawn(spawner, board.twim, main_uart::tx_sender());
 
     defmt::info!("Embassy initialized, starting blink sequence...");
     for cbits in 1..=8 {
