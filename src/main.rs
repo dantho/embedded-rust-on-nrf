@@ -2,6 +2,7 @@
 #![no_main]
 
 mod bsp;
+mod lsm6ds3;
 mod main_leds;
 mod main_uart;
 mod main_imu;
