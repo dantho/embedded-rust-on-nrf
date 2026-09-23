@@ -61,6 +61,9 @@ async fn imu_task(twim: Twim<'static>, uart_tx: UartTxSender) {
                 Ok(value) => {
                     let _ = write!(msg, "IMU[0x{:02X}] = 0x{:02X}", reg, value);
                 }
+                Err(ImuIoError::NotDetected) => {
+                    let _ = write!(msg, "IMU not detected; run imu-status first");
+                }
                 Err(ImuIoError::Timeout) => {
                     let _ = write!(msg, "IMU read timed out at 0x{:02X}", reg);
                 }
@@ -72,6 +75,9 @@ async fn imu_task(twim: Twim<'static>, uart_tx: UartTxSender) {
             ImuCommand::WriteReg { reg, value } => match imu.write_reg(reg, value).await {
                 Ok(()) => {
                     let _ = write!(msg, "IMU[0x{:02X}] <= 0x{:02X}", reg, value);
+                }
+                Err(ImuIoError::NotDetected) => {
+                    let _ = write!(msg, "IMU not detected; run imu-status first");
                 }
                 Err(ImuIoError::Timeout) => {
                     let _ = write!(msg, "IMU write timed out at 0x{:02X}", reg);
@@ -88,6 +94,9 @@ async fn imu_task(twim: Twim<'static>, uart_tx: UartTxSender) {
                         "A:{:+.2},{:+.2},{:+.2}g G:{:+.1},{:+.1},{:+.1}dps",
                         ax, ay, az, gx, gy, gz
                     );
+                }
+                Err(ImuIoError::NotDetected) => {
+                    let _ = write!(msg, "IMU not detected; run imu-status first");
                 }
                 Err(ImuIoError::Timeout) => {
                     let _ = write!(msg, "IMU sample read timed out");

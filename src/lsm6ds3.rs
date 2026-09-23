@@ -26,6 +26,8 @@ const I2C_TIMEOUT: Duration = Duration::from_millis(100);
 pub enum ImuIoError {
     Bus(twim::Error),
     Timeout,
+    /// No address is known yet; probing was never done or found nothing.
+    NotDetected,
 }
 
 /// Outcome of a WHO_AM_I probe: the address that answered and the value it returned.
@@ -79,26 +81,26 @@ impl Lsm6ds3 {
 
     /// Set accelerometer/gyro output data rate and full-scale range.
     pub async fn configure(&mut self) -> Result<(), ImuIoError> {
-        let addr = self.addr.unwrap_or(IMU_ADDR_PRIMARY);
+        let addr = self.addr.ok_or(ImuIoError::NotDetected)?;
         self.write_reg_at(addr, CTRL1_XL_REG, ODR_104HZ_2G_250DPS).await?;
         self.write_reg_at(addr, CTRL2_G_REG, ODR_104HZ_2G_250DPS).await?;
         Ok(())
     }
 
     pub async fn read_reg(&mut self, reg: u8) -> Result<u8, ImuIoError> {
-        let addr = self.addr.unwrap_or(IMU_ADDR_PRIMARY);
+        let addr = self.addr.ok_or(ImuIoError::NotDetected)?;
         self.read_reg_at(addr, reg).await
     }
 
     pub async fn write_reg(&mut self, reg: u8, value: u8) -> Result<(), ImuIoError> {
-        let addr = self.addr.unwrap_or(IMU_ADDR_PRIMARY);
+        let addr = self.addr.ok_or(ImuIoError::NotDetected)?;
         self.write_reg_at(addr, reg, value).await
     }
 
     /// Read the gyro+accel burst and convert to dps/g using the configured full-scale range.
     /// Returns `[gx, gy, gz, ax, ay, az]`.
     pub async fn read_sample(&mut self) -> Result<[f32; 6], ImuIoError> {
-        let addr = self.addr.unwrap_or(IMU_ADDR_PRIMARY);
+        let addr = self.addr.ok_or(ImuIoError::NotDetected)?;
         let mut buf = [0u8; 12];
         // A bare `&[OUT_START_REG]` is a const array literal the compiler can place in flash,
         // which DMA can't read; bind it to a local so it's guaranteed to live in RAM.
