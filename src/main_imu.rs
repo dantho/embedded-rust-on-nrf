@@ -42,59 +42,59 @@ async fn imu_task(twim: Twim<'static>, uart_tx: UartTxSender) {
                 Some(result) if result.matches_expected() => {
                     let _ = write!(
                         msg,
-                        "IMU detected at 0x{:02X}: WHO_AM_I=0x{:02X}\n",
+                        "IMU detected at 0x{:02X}: WHO_AM_I=0x{:02X}",
                         result.addr, result.who_am_i
                     );
                 }
                 Some(result) => {
                     let _ = write!(
                         msg,
-                        "IMU mismatch at 0x{:02X}: WHO_AM_I=0x{:02X} (expected 0x{:02X})\n",
+                        "IMU mismatch at 0x{:02X}: WHO_AM_I=0x{:02X} (expected 0x{:02X})",
                         result.addr, result.who_am_i, result.expected
                     );
                 }
                 None => {
-                    let _ = write!(msg, "IMU not found at 0x6A or 0x6B.\n");
+                    let _ = write!(msg, "IMU not found at 0x6A or 0x6B.");
                 }
             },
             ImuCommand::ReadReg { reg } => match imu.read_reg(reg).await {
                 Ok(value) => {
-                    let _ = write!(msg, "IMU[0x{:02X}] = 0x{:02X}\n", reg, value);
+                    let _ = write!(msg, "IMU[0x{:02X}] = 0x{:02X}", reg, value);
                 }
                 Err(ImuIoError::Timeout) => {
-                    let _ = write!(msg, "IMU read timed out at 0x{:02X}\n", reg);
+                    let _ = write!(msg, "IMU read timed out at 0x{:02X}", reg);
                 }
                 Err(ImuIoError::Bus(e)) => {
                     defmt::warn!("IMU read bus error at {=u8:#04x}: {}", reg, e);
-                    let _ = write!(msg, "IMU read error at 0x{:02X}\n", reg);
+                    let _ = write!(msg, "IMU read error at 0x{:02X}", reg);
                 }
             },
             ImuCommand::WriteReg { reg, value } => match imu.write_reg(reg, value).await {
                 Ok(()) => {
-                    let _ = write!(msg, "IMU[0x{:02X}] <= 0x{:02X}\n", reg, value);
+                    let _ = write!(msg, "IMU[0x{:02X}] <= 0x{:02X}", reg, value);
                 }
                 Err(ImuIoError::Timeout) => {
-                    let _ = write!(msg, "IMU write timed out at 0x{:02X}\n", reg);
+                    let _ = write!(msg, "IMU write timed out at 0x{:02X}", reg);
                 }
                 Err(ImuIoError::Bus(e)) => {
                     defmt::warn!("IMU write bus error at {=u8:#04x}: {}", reg, e);
-                    let _ = write!(msg, "IMU write error at 0x{:02X}\n", reg);
+                    let _ = write!(msg, "IMU write error at 0x{:02X}", reg);
                 }
             },
             ImuCommand::Sample => match imu.read_sample().await {
                 Ok([gx, gy, gz, ax, ay, az]) => {
                     let _ = write!(
                         msg,
-                        "A:{:+.2},{:+.2},{:+.2}g G:{:+.1},{:+.1},{:+.1}dps\n",
+                        "A:{:+.2},{:+.2},{:+.2}g G:{:+.1},{:+.1},{:+.1}dps",
                         ax, ay, az, gx, gy, gz
                     );
                 }
                 Err(ImuIoError::Timeout) => {
-                    let _ = write!(msg, "IMU sample read timed out\n");
+                    let _ = write!(msg, "IMU sample read timed out");
                 }
                 Err(ImuIoError::Bus(e)) => {
                     defmt::warn!("IMU sample bus error: {}", e);
-                    let _ = write!(msg, "IMU sample read error\n");
+                    let _ = write!(msg, "IMU sample read error");
                 }
             },
         }
@@ -109,19 +109,19 @@ async fn init_report(imu: &mut Lsm6ds3) -> String<64> {
         Some((probe, Ok(()))) => {
             let _ = write!(
                 msg,
-                "IMU init: 0x{:02X} WHO_AM_I=0x{:02X} configured OK\n",
+                "IMU init: 0x{:02X} WHO_AM_I=0x{:02X} configured OK",
                 probe.addr, probe.who_am_i
             );
         }
         Some((probe, Err(_))) => {
             let _ = write!(
                 msg,
-                "IMU init: 0x{:02X} WHO_AM_I=0x{:02X} config FAILED\n",
+                "IMU init: 0x{:02X} WHO_AM_I=0x{:02X} config FAILED",
                 probe.addr, probe.who_am_i
             );
         }
         None => {
-            let _ = write!(msg, "IMU init: not found at 0x6A or 0x6B\n");
+            let _ = write!(msg, "IMU init: not found at 0x6A or 0x6B");
         }
     }
     msg
