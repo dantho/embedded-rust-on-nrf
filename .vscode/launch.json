@@ -50,7 +50,7 @@
             "chip": "nRF52840_xxAA",
             "wireProtocol": "Swd",
             "runtimeExecutable": "C:\\Users\\DanTh\\.cargo\\bin\\probe-rs.exe",
-            "logFile": "${workspaceFolder}\\probe-rs-debug.log",
+            //"logFile": "${workspaceFolder}\\probe-rs-debug.log",
             //!MODIFY (or remove)
             // "probe": "VID:PID:<Serial>",
             "flashingConfig": {
